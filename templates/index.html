@@ -1,0 +1,129 @@
+{% extends "base.html" %}
+{% block title %}Axiom — Community Platform{% endblock %}
+
+{% block content %}
+
+<!-- HERO -->
+<section class="hero">
+  <div class="wrap hero-grid">
+    <div class="hero-text">
+      <p class="eyebrow">A structured membership platform</p>
+      <h1>Six tiers of access.<br>One clear set of rules.</h1>
+      <p class="hero-sub">Axiom organizes a community around what each member has actually paid for — free discussion, verified upgrades, a job board for real work, and tiers that unlock more as you go. No guessing what you're allowed to do.</p>
+      <div class="hero-cta">
+        {% if current_user.is_authenticated %}
+          <a href="{{ url_for('dashboard') }}" class="btn btn-solid">Go to dashboard</a>
+        {% else %}
+          <a href="{{ url_for('signup') }}" class="btn btn-solid">Join free</a>
+        {% endif %}
+        <a href="{{ url_for('pricing') }}" class="btn btn-ghost">See pricing</a>
+      </div>
+
+      <!-- Live member counter -->
+      <div class="live-stats" id="liveStats">
+        <div class="live-stat">
+          <span class="live-stat-num" id="statTotal">—</span>
+          <span class="live-stat-label">Members</span>
+        </div>
+        <div class="live-stat-divider"></div>
+        <div class="live-stat">
+          <span class="live-stat-num" id="statPremium">—</span>
+          <span class="live-stat-label">Standard &amp; Premium</span>
+        </div>
+        <span class="live-dot"></span>
+      </div>
+    </div>
+    <div class="hero-mark">
+      <img src="{{ url_for('static', filename='img/mark.png') }}" alt="Axiom">
+    </div>
+  </div>
+</section>
+
+<!-- TIER OVERVIEW -->
+<section class="home-tiers">
+  <div class="wrap">
+    <p class="eyebrow">Membership</p>
+    <h2>Four tiers, verified by hand</h2>
+    <div class="tier-row">
+      {% for key in tier_order %}
+        {% set t = tiers[key] %}
+        <div class="tier-mini tier-mini-{{ key }}">
+          <div class="tier-mini-icon">{{ tier_icon(key) }}</div>
+          <div class="tier-mini-name">{{ t.label }}</div>
+          <div class="tier-mini-price">{{ "{:,}".format(t.price) }} <span>MMK</span></div>
+          <div class="tier-mini-period">{{ t.period }}</div>
+        </div>
+      {% endfor %}
+    </div>
+    <a href="{{ url_for('pricing') }}" class="link-arrow">Compare what each tier unlocks →</a>
+  </div>
+</section>
+
+<!-- UPDATES + COMMUNITY PREVIEW -->
+<section class="home-split">
+  <div class="wrap home-split-grid">
+    <div class="panel">
+      <p class="eyebrow">Latest from Axiom</p>
+      <h3>Updates</h3>
+      {% if updates %}
+        {% for u in updates %}
+          <div class="home-update-item">
+            <span class="home-update-date">{{ u.created_at.strftime('%b %d') }}</span>
+            <strong>{{ u.title }}</strong>
+            <p>{{ u.content[:120] }}{% if u.content|length > 120 %}…{% endif %}</p>
+          </div>
+        {% endfor %}
+      {% else %}
+        <p class="muted">No official updates yet.</p>
+      {% endif %}
+      <a href="{{ url_for('updates') }}" class="link-arrow">All updates →</a>
+    </div>
+    <div class="panel">
+      <p class="eyebrow">From the community</p>
+      <h3>Member posts</h3>
+      {% if posts %}
+        {% for p in posts %}
+          <div class="home-update-item">
+            <span class="home-update-date">{{ p.created_at.strftime('%b %d') }}</span>
+            <strong>{{ p.author.name }}</strong>
+            <p>{{ p.content[:120] }}{% if p.content|length > 120 %}…{% endif %}</p>
+          </div>
+        {% endfor %}
+      {% else %}
+        <p class="muted">No posts yet — Premium members and admins can post.</p>
+      {% endif %}
+      <a href="{{ url_for('dashboard') if current_user.is_authenticated else url_for('signup') }}" class="link-arrow">Open dashboard →</a>
+    </div>
+  </div>
+</section>
+
+<!-- JOB BOARD CTA -->
+<section class="home-cta-banner">
+  <div class="wrap home-cta-inner">
+    <div>
+      <p class="eyebrow">Work, inside the community</p>
+      <h2>Hiring, or available to hire?</h2>
+      <p class="muted">Every member — free or paid — can post on the job board. Freelancers list what they do, employers list what they need.</p>
+    </div>
+    <a href="{{ url_for('jobs') if current_user.is_authenticated else url_for('signup') }}" class="btn btn-solid btn-lg">Open job board</a>
+  </div>
+</section>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+(function(){
+  async function updateStats(){
+    try{
+      const r = await fetch('/api/stats');
+      const d = await r.json();
+      document.getElementById('statTotal').textContent = d.total.toLocaleString();
+      document.getElementById('statPremium').textContent = d.premium.toLocaleString();
+    } catch(e){}
+  }
+  updateStats();
+  setInterval(updateStats, 10000); // refresh every 10s
+})();
+</script>
+{% endblock %}

@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+{% block title %}Notifications — Axiom{% endblock %}
+
+{% block content %}
+<section class="page-head">
+  <div class="wrap">
+    <p class="eyebrow">Activity</p>
+    <h1>Notifications</h1>
+  </div>
+</section>
+
+<section class="notifications-list-section">
+  <div class="wrap">
+    {% if all_notifs %}
+      <div class="notif-list-full">
+        {% for n in all_notifs %}
+          <a href="{{ n.link or '#' }}" class="notif-row {{ '' if n.is_read else 'notif-row-unread' }}">
+            <p>{{ n.message }}</p>
+            <span class="muted">{{ n.created_at.strftime('%b %d, %Y · %I:%M %p') }}</span>
+          </a>
+        {% endfor %}
+      </div>
+    {% else %}
+      <p class="muted">No notifications yet.</p>
+    {% endif %}
+  </div>
+</section>
+{% endblock %}

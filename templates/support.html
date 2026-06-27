@@ -1,0 +1,112 @@
+{% extends "base.html" %}
+{% block title %}Customer Support — Axiom{% endblock %}
+
+{% block content %}
+<section class="page-head page-head-tight">
+  <div class="wrap">
+    <p class="eyebrow">Help</p>
+    <h1>Customer Support</h1>
+    <p class="muted">Send a message to the Axiom team. We'll reply as soon as possible.</p>
+  </div>
+</section>
+
+<section class="support-section">
+  <div class="wrap support-wrap">
+    <div class="support-chat-box" id="supportBox">
+      {% if messages %}
+        {% for m in messages %}
+          <div class="support-msg {{ 'support-msg-admin' if m.is_from_admin else 'support-msg-user' }}"
+               data-id="{{ m.id }}">
+            <div class="support-msg-name">
+              {{ 'Axiom Team' if m.is_from_admin else current_user.name }}
+            </div>
+            <div class="support-msg-bubble">{{ m.content }}</div>
+            <div class="support-msg-time">{{ m.created_at.strftime('%b %d · %I:%M %p') }}</div>
+          </div>
+        {% endfor %}
+      {% else %}
+        <div class="support-empty" id="supportEmpty">
+          <p>No messages yet. Send us a message below and we'll get back to you.</p>
+        </div>
+      {% endif %}
+    </div>
+
+    <form class="support-input-row" id="supportForm">
+      <input type="text" id="supportInput"
+             placeholder="Type your message…"
+             maxlength="1000" required autocomplete="off">
+      <button type="submit" class="btn btn-solid">Send</button>
+    </form>
+  </div>
+</section>
+{% endblock %}
+
+{% block scripts %}
+<script>
+(function(){
+  const box   = document.getElementById('supportBox');
+  const form  = document.getElementById('supportForm');
+  const input = document.getElementById('supportInput');
+  if (!box || !form) return;
+
+  let lastId = {{ messages[-1].id if messages else 0 }};
+
+  function scrollBottom(){ box.scrollTop = box.scrollHeight; }
+  scrollBottom();
+
+  function buildMsg(d) {
+    const wrap = document.createElement('div');
+    wrap.className = 'support-msg ' + (d.is_from_admin ? 'support-msg-admin' : 'support-msg-user');
+    wrap.dataset.id = d.id;
+    wrap.innerHTML = `
+      <div class="support-msg-name">${d.is_from_admin ? 'Axiom Team' : d.sender_name}</div>
+      <div class="support-msg-bubble">${d.content}</div>
+      <div class="support-msg-time">${d.time}</div>
+    `;
+    return wrap;
+  }
+
+  function removeEmpty(){
+    const e = document.getElementById('supportEmpty');
+    if (e) e.remove();
+  }
+
+  // Send message via AJAX
+  form.addEventListener('submit', async e => {
+    e.preventDefault();
+    const text = input.value.trim();
+    if (!text) return;
+    input.value = '';
+    const fd = new FormData();
+    fd.append('content', text);
+    try {
+      const res = await fetch('/support/send-ajax', { method: 'POST', body: fd });
+      if (res.ok) {
+        const d = await res.json();
+        removeEmpty();
+        box.appendChild(buildMsg(d));
+        lastId = d.id;
+        scrollBottom();
+      }
+    } catch(err){ console.error(err); }
+  });
+
+  // Poll every 3s for admin replies
+  setInterval(async () => {
+    try {
+      const res = await fetch(`/support/poll?after=${lastId}`);
+      if (!res.ok) return;
+      const msgs = await res.json();
+      for (const d of msgs) {
+        if (!document.querySelector(`[data-id="${d.id}"]`)) {
+          removeEmpty();
+          box.appendChild(buildMsg(d));
+          lastId = d.id;
+        }
+      }
+      if (msgs.length) scrollBottom();
+    } catch(err){}
+  }, 3000);
+})();
+</script>
+{% endblock %}

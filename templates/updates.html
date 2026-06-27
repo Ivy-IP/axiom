@@ -1,0 +1,65 @@
+{% extends "base.html" %}
+{% block title %}Updates — Axiom{% endblock %}
+
+{% block content %}
+<section class="page-head">
+  <div class="wrap">
+    <p class="eyebrow">Official</p>
+    <h1>Updates</h1>
+    <p class="muted">Announcements from the Axiom team.</p>
+  </div>
+</section>
+
+{% if current_user.is_authenticated and (current_user.is_admin or current_user.can_post_updates) %}
+<section class="updates-composer-section">
+  <div class="wrap">
+    <div class="panel">
+      <p class="eyebrow">Admin / company only</p>
+      <h3>Publish an update</h3>
+      <form method="POST" action="{{ url_for('updates') }}" enctype="multipart/form-data">
+        <div class="field">
+          <label for="title">Title</label>
+          <input type="text" id="title" name="title" required>
+        </div>
+        <div class="field">
+          <label for="content">Content</label>
+          <textarea id="content" name="content" required></textarea>
+        </div>
+        <div class="field">
+          <label>Image (optional, max 2MB)</label>
+          <input type="file" name="image" accept="image/*" class="file-input">
+        </div>
+        <button class="btn btn-solid" type="submit">Publish</button>
+      </form>
+    </div>
+  </div>
+</section>
+{% endif %}
+
+<section class="updates-list-section">
+  <div class="wrap">
+    {% if all_updates %}
+      <div class="update-list update-list-full">
+        {% for u in all_updates %}
+          <div class="update-item">
+            <span class="update-date">{{ u.created_at.strftime('%b %d, %Y') }}</span>
+            <div>
+              <h4>{{ u.title }}</h4>
+              {% if u.image_data %}<img src="data:{{ u.image_mime }};base64,{{ u.image_data }}" class="post-image" alt="">{% endif %}
+              <p>{{ u.content }}</p>
+              <span class="post-author">— {{ u.author.name }}</span>
+              {% if current_user.is_authenticated and (u.user_id == current_user.id or current_user.is_admin) %}
+                <form method="POST" action="{{ url_for('delete_post', post_id=u.id) }}" class="post-delete-form post-delete-form-inline">
+                  <button type="submit" class="post-delete-btn" title="Delete update">✕ Delete</button>
+                </form>
+              {% endif %}
+            </div>
+          </div>
+        {% endfor %}
+      </div>
+    {% else %}
+      <p class="muted">No updates published yet.</p>
+    {% endif %}
+  </div>
+</section>
+{% endblock %}

@@ -1,0 +1,177 @@
+{% extends "base.html" %}
+{% block title %}My Profile — Axiom{% endblock %}
+
+{% block content %}
+<section class="page-head">
+  <div class="wrap wall-head">
+    <div class="wall-avatar">
+      {% if current_user.avatar_src %}
+        <img src="{{ current_user.avatar_src }}" alt="{{ current_user.name }}" class="avatar-img avatar-img-lg">
+      {% else %}
+        <div class="avatar avatar-lg">{{ current_user.name[0]|upper }}</div>
+      {% endif %}
+    </div>
+    <div class="wall-info">
+      <h1>{{ current_user.name }}</h1>
+      <div class="wall-badges">
+        <span class="tier-pill tier-{{ current_user.tier }}">{{ tier_icon(current_user.tier) }} {{ current_user.tier_label }}</span>
+        {% if current_user.badge_label %}
+          <span class="tier-pill tier-staff">{{ current_user.badge_label }}</span>
+        {% endif %}
+      </div>
+      {% if current_user.tier in ('standard','premium') %}
+        {% if current_user.tier_expires_at %}
+          <p class="membership-expiry">
+            Active until <strong>{{ current_user.tier_expires_at.strftime('%b %d, %Y') }}</strong>
+            {% if current_user.tier_is_expired %}<span class="expiry-warn">— expired</span>{% endif %}
+          </p>
+        {% endif %}
+      {% endif %}
+    </div>
+    <div class="wall-actions">
+      <a href="{{ url_for('wall', user_id=current_user.id) }}" class="btn btn-ghost">View public wall →</a>
+      <a href="{{ url_for('support') }}" class="btn btn-ghost">Contact Support →</a>
+    </div>
+  </div>
+</section>
+
+<section class="profile-body">
+  <div class="wrap profile-grid">
+
+    <!-- Profile Picture -->
+    <div class="panel">
+      <p class="eyebrow">Profile picture</p>
+      <h3>Your photo</h3>
+      {% if current_user.avatar_src %}
+        <img src="{{ current_user.avatar_src }}" alt="{{ current_user.name }}" class="avatar-preview">
+        <div class="avatar-actions">
+          {% if current_user.can_change_avatar %}
+            <form method="POST" action="{{ url_for('avatar_upload') }}" enctype="multipart/form-data" class="avatar-upload-form">
+              <label class="file-label">
+                Change photo
+                <input type="file" name="avatar" accept="image/*" onchange="this.form.submit()">
+              </label>
+            </form>
+          {% else %}
+            <p class="muted" style="font-size:.82rem;">You can change your photo again in 7 days.</p>
+          {% endif %}
+          <form method="POST" action="{{ url_for('avatar_delete') }}" style="margin:0;">
+            <button type="submit" class="btn btn-ghost" onclick="return confirm('Remove your profile picture?')">Remove</button>
+          </form>
+        </div>
+      {% else %}
+        <div class="avatar avatar-lg" style="margin-bottom:14px;">{{ current_user.name[0]|upper }}</div>
+        {% if current_user.can_change_avatar %}
+          <form method="POST" action="{{ url_for('avatar_upload') }}" enctype="multipart/form-data" class="avatar-upload-form">
+            <label class="file-label">
+              Upload a photo
+              <input type="file" name="avatar" accept="image/*" required onchange="this.form.submit()">
+            </label>
+          </form>
+          <p class="muted" style="font-size:.78rem;margin-top:8px;">Max 1MB · Once per week</p>
+        {% else %}
+          <p class="muted" style="font-size:.82rem;">You can change your photo again in 7 days.</p>
+        {% endif %}
+      {% endif %}
+    </div>
+
+    <!-- Edit profile -->
+    <div class="panel">
+      <p class="eyebrow">About you</p>
+      <h3>Edit profile</h3>
+      <form method="POST" action="{{ url_for('profile') }}">
+        <div class="field">
+          <label for="bio">Bio</label>
+          <textarea id="bio" name="bio" maxlength="280" placeholder="A short line about you">{{ current_user.bio or '' }}</textarea>
+        </div>
+        <div class="field">
+          <label for="skills">Skills / what you do</label>
+          <input type="text" id="skills" name="skills" maxlength="280"
+                 value="{{ current_user.skills or '' }}"
+                 placeholder="e.g. Graphic design, Flutter development">
+        </div>
+        <button class="btn btn-solid" type="submit">Save changes</button>
+      </form>
+
+      <hr style="border:none;border-top:1px solid var(--line);margin:24px 0;">
+      <p class="eyebrow">Security</p>
+      <h3>Change password</h3>
+      <form method="POST" action="{{ url_for('change_password') }}">
+        <div class="field">
+          <label for="cur-pw">Current password</label>
+          <input type="password" id="cur-pw" name="current_password" required placeholder="••••••••">
+        </div>
+        <div class="field">
+          <label for="new-pw">New password</label>
+          <input type="password" id="new-pw" name="new_password" required placeholder="••••••••" minlength="6">
+        </div>
+        <div class="field">
+          <label for="conf-pw">Confirm new password</label>
+          <input type="password" id="conf-pw" name="confirm_password" required placeholder="••••••••">
+        </div>
+        <button class="btn btn-solid" type="submit">Update password</button>
+      </form>
+    </div>
+  </div>
+
+  <div class="wrap profile-grid">
+    <!-- Billing -->
+    <div class="panel">
+      <p class="eyebrow">Billing</p>
+      <h3>Upgrade requests</h3>
+      {% if my_payment_requests %}
+        <table class="simple-table">
+          <thead><tr><th>Tier</th><th>Method</th><th>Status</th><th>Date</th></tr></thead>
+          <tbody>
+            {% for pr in my_payment_requests %}
+              <tr>
+                <td>{{ tiers[pr.tier_requested].label }}</td>
+                <td>{{ pr.method }}</td>
+                <td><span class="status-pill status-{{ pr.status }}">{{ pr.status }}</span></td>
+                <td>{{ pr.created_at.strftime('%b %d, %Y') }}</td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      {% else %}
+        <p class="muted">No upgrade requests yet.</p>
+      {% endif %}
+      <a href="{{ url_for('pricing') }}" class="link-arrow">Request an upgrade →</a>
+    </div>
+
+    <!-- Activity -->
+    <div class="panel">
+      <p class="eyebrow">Your activity</p>
+      <h3>Posts &amp; jobs</h3>
+      {% if my_jobs %}
+        <ul class="mini-list">
+          {% for j in my_jobs %}
+            <li>
+              <strong>{{ j.title }}</strong>
+              <span class="muted">— {{ j.job_type }}</span>
+              <form method="POST" action="{{ url_for('delete_job', job_id=j.id) }}" style="display:inline;margin-left:8px;">
+                <button type="submit" class="post-delete-btn" title="Delete">✕</button>
+              </form>
+            </li>
+          {% endfor %}
+        </ul>
+      {% endif %}
+      {% if my_posts %}
+        <ul class="mini-list" style="margin-top:10px;">
+          {% for p in my_posts %}
+            <li>
+              {{ p.content[:80] }}{% if p.content|length > 80 %}…{% endif %}
+              <form method="POST" action="{{ url_for('delete_post', post_id=p.id) }}" style="display:inline;margin-left:8px;">
+                <button type="submit" class="post-delete-btn" title="Delete">✕</button>
+              </form>
+            </li>
+          {% endfor %}
+        </ul>
+      {% else %}
+        <p class="muted">No posts yet.</p>
+      {% endif %}
+      <a href="{{ url_for('wall', user_id=current_user.id) }}" class="link-arrow" style="margin-top:10px;">View your public wall →</a>
+    </div>
+  </div>
+</section>
+{% endblock %}

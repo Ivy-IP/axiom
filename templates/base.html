@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>{% block title %}Axiom{% endblock %}</title>
+<link rel="icon" type="image/png" href="{{ url_for('static', filename='img/mark.png') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+
+<header class="site-header">
+  <!-- Row 1: brand | search | auth | hamburger -->
+  <div class="nav-top">
+    <a href="{{ url_for('index') }}" class="brand">
+      <img src="{{ url_for('static', filename='img/mark.png') }}" alt="" class="brand-mark">
+      <span>{{ brand_name }}</span>
+    </a>
+
+    <form class="nav-search" action="{{ url_for('search') }}" method="GET" role="search">
+      <input type="search" name="q" placeholder="Search members…" value="{{ request.args.get('q','') }}" maxlength="60">
+      <button type="submit" aria-label="Search">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+      </button>
+    </form>
+
+    <div class="nav-auth">
+      {% if current_user.is_authenticated %}
+        <div class="notif-wrap">
+          <button class="bell-btn" id="bellBtn" aria-label="Notifications">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M18 8a6 6 0 1 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.7 21a2 2 0 0 1-3.4 0"/></svg>
+            {% if unread_notifications %}<span class="bell-dot"></span>{% endif %}
+          </button>
+          <div class="notif-dropdown" id="notifDropdown">
+            <div class="notif-head">Notifications</div>
+            {% if unread_notifications %}
+              {% for n in unread_notifications %}
+                <a href="{{ n.link or url_for('notifications') }}" class="notif-item">{{ n.message }}</a>
+              {% endfor %}
+            {% else %}
+              <div class="notif-empty">You're all caught up.</div>
+            {% endif %}
+            <a href="{{ url_for('notifications') }}" class="notif-all">View all</a>
+          </div>
+        </div>
+        {% if current_user.badge_label %}
+          <a href="{{ url_for('profile') }}" class="tier-pill tier-staff">{{ current_user.badge_label }}</a>
+        {% else %}
+          <a href="{{ url_for('profile') }}" class="tier-pill tier-{{ current_user.tier }}">{{ tier_icon(current_user.tier) }} {{ current_user.tier_label }}</a>
+        {% endif %}
+        <a href="{{ url_for('profile') }}" class="nav-avatar" title="{{ current_user.name }}">
+          {% if current_user.avatar_src %}
+            <img src="{{ current_user.avatar_src }}" alt="{{ current_user.name }}">
+          {% else %}
+            <span>{{ current_user.name[0]|upper }}</span>
+          {% endif %}
+        </a>
+        <a href="{{ url_for('logout') }}" class="btn btn-ghost btn-sm">Log out</a>
+      {% else %}
+        <a href="{{ url_for('login') }}" class="btn btn-ghost btn-sm">Log in</a>
+        <a href="{{ url_for('signup') }}" class="btn btn-solid btn-sm">Join free</a>
+      {% endif %}
+    </div>
+
+    <button class="menu-toggle" id="menuToggle" aria-label="Toggle menu">
+      <span></span><span></span><span></span>
+    </button>
+  </div>
+
+  <!-- Row 2: page links (desktop inline / mobile drawer) -->
+  <div class="nav-bar" id="navCollapse">
+    <ul class="nav-links">
+      <li><a href="{{ url_for('index') }}">Home</a></li>
+      {% if current_user.is_authenticated %}
+        <li><a href="{{ url_for('dashboard') }}">Dashboard</a></li>
+        <li><a href="{{ url_for('jobs') }}">Jobs</a></li>
+        <li><a href="{{ url_for('chat', room='free') }}">Chat</a></li>
+        <li><a href="{{ url_for('events') }}">Events</a></li>
+        <li><a href="{{ url_for('support') }}">Support</a></li>
+      {% endif %}
+      <li><a href="{{ url_for('pricing') }}">Pricing</a></li>
+      <li><a href="{{ url_for('updates') }}">Updates</a></li>
+      {% if current_user.is_authenticated and current_user.is_admin %}
+        <li><a href="{{ url_for('admin_panel') }}" class="nav-admin">Admin</a></li>
+        <li><a href="{{ url_for('admin_support') }}" class="nav-admin">Support Inbox</a></li>
+      {% endif %}
+    </ul>
+  </div>
+</header>
+
+{% with messages = get_flashed_messages(with_categories=true) %}
+  {% if messages %}
+    <div class="flash-wrap">
+      {% for category, message in messages %}
+        <div class="flash flash-{{ category }}">{{ message }}</div>
+      {% endfor %}
+    </div>
+  {% endif %}
+{% endwith %}
+
+{% block content %}{% endblock %}
+
+<footer class="site-footer">
+  <div class="wrap footer-inner">
+    <div class="footer-brand">
+      <img src="{{ url_for('static', filename='img/mark.png') }}" alt="" class="brand-mark">
+      <span>{{ brand_name }}</span>
+      <p>A members' platform built on clear tiers, verified payments, and real work — for the community and the people hiring from it.</p>
+    </div>
+    <div class="footer-col">
+      <h5>Platform</h5>
+      <a href="{{ url_for('pricing') }}">Pricing</a>
+      <a href="{{ url_for('jobs') if current_user.is_authenticated else url_for('signup') }}">Jobs</a>
+      <a href="{{ url_for('updates') }}">Updates</a>
+      <a href="{{ url_for('events') if current_user.is_authenticated else url_for('signup') }}">Events</a>
+    </div>
+    <div class="footer-col">
+      <h5>Account</h5>
+      {% if current_user.is_authenticated %}
+        <a href="{{ url_for('profile') }}">Profile</a>
+        <a href="{{ url_for('logout') }}">Log out</a>
+      {% else %}
+        <a href="{{ url_for('login') }}">Log in</a>
+        <a href="{{ url_for('signup') }}">Sign up</a>
+      {% endif %}
+    </div>
+  </div>
+  <div class="footer-bottom">
+    <span>© {{ now_year }} {{ brand_name }}. All rights reserved.</span>
+  </div>
+</footer>
+
+<script src="{{ url_for('static', filename='js/main.js') }}"></script>
+{% block scripts %}{% endblock %}
+</body>
+</html>

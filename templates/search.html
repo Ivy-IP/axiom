@@ -1,0 +1,53 @@
+{% extends "base.html" %}
+{% block title %}Search — Axiom{% endblock %}
+
+{% block content %}
+<section class="page-head page-head-tight">
+  <div class="wrap">
+    <p class="eyebrow">Members</p>
+    <h1>Search</h1>
+    <form class="search-hero-form" action="{{ url_for('search') }}" method="GET">
+      <input type="search" name="q" value="{{ q }}" placeholder="Search by name…" autofocus maxlength="60">
+      <button type="submit" class="btn btn-solid">Search</button>
+    </form>
+  </div>
+</section>
+
+<section class="search-results-section">
+  <div class="wrap">
+    {% if q %}
+      {% if results %}
+        <p class="muted" style="margin-bottom:18px;">{{ results|length }} result{{ 's' if results|length != 1 }} for "<strong>{{ q }}</strong>"</p>
+        <div class="member-grid">
+          {% for u in results %}
+            <a href="{{ url_for('wall', user_id=u.id) }}" class="member-card">
+              <div class="member-card-avatar">
+                {% if u.avatar_src %}
+                  <img src="{{ u.avatar_src }}" alt="{{ u.name }}">
+                {% else %}
+                  <span>{{ u.name[0]|upper }}</span>
+                {% endif %}
+              </div>
+              <div class="member-card-info">
+                <div class="member-card-name">{{ u.name }}</div>
+                {% if u.badge_label %}
+                  <span class="tier-pill tier-staff">{{ u.badge_label }}</span>
+                {% else %}
+                  <span class="tier-pill tier-{{ u.tier }}">{{ u.tier_label }}</span>
+                {% endif %}
+                {% if u.bio %}
+                  <p class="member-card-bio">{{ u.bio[:80] }}{% if u.bio|length > 80 %}…{% endif %}</p>
+                {% endif %}
+              </div>
+            </a>
+          {% endfor %}
+        </div>
+      {% else %}
+        <p class="muted">No members found for "<strong>{{ q }}</strong>".</p>
+      {% endif %}
+    {% else %}
+      <p class="muted">Type a name above to search for members.</p>
+    {% endif %}
+  </div>
+</section>
+{% endblock %}

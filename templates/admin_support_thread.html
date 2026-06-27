@@ -1,0 +1,47 @@
+{% extends "base.html" %}
+{% block title %}{{ member.name }} — Support{% endblock %}
+
+{% block content %}
+<section class="page-head page-head-tight">
+  <div class="wrap">
+    <p class="eyebrow">
+      <a href="{{ url_for('admin_panel') }}">Admin</a> /
+      <a href="{{ url_for('admin_support') }}">Support</a> /
+      {{ member.name }}
+    </p>
+    <h1>{{ member.name }}</h1>
+  </div>
+</section>
+
+<section class="support-section">
+  <div class="wrap support-wrap">
+    <div class="support-chat-box" id="supportBox">
+      {% for m in messages %}
+        <div class="support-msg {{ 'support-msg-admin' if m.is_from_admin else 'support-msg-user' }}"
+             data-id="{{ m.id }}">
+          <div class="support-msg-name">
+            {{ m.sender.name }}
+          </div>
+          <div class="support-msg-bubble">{{ m.content }}</div>
+          <div class="support-msg-time">{{ m.created_at.strftime('%b %d · %I:%M %p') }}</div>
+        </div>
+      {% endfor %}
+    </div>
+
+    <form class="support-input-row" method="POST"
+          action="{{ url_for('admin_support_thread', user_id=member.id) }}">
+      <input type="text" name="content"
+             placeholder="Reply to {{ member.name }}…"
+             maxlength="1000" required autocomplete="off">
+      <button type="submit" class="btn btn-solid">Reply</button>
+    </form>
+  </div>
+</section>
+{% endblock %}
+
+{% block scripts %}
+<script>
+const box = document.getElementById('supportBox');
+if (box) box.scrollTop = box.scrollHeight;
+</script>
+{% endblock %}

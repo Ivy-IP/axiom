@@ -1,0 +1,45 @@
+{% extends "base.html" %}
+{% block title %}Support Inbox — Admin{% endblock %}
+
+{% block content %}
+<section class="page-head page-head-tight">
+  <div class="wrap">
+    <p class="eyebrow"><a href="{{ url_for('admin_panel') }}">Admin</a> / Support</p>
+    <h1>Support Inbox</h1>
+  </div>
+</section>
+
+<section class="admin-section">
+  <div class="wrap">
+    {% if threads %}
+      <div class="support-thread-list">
+        {% for t in threads %}
+          <a href="{{ url_for('admin_support_thread', user_id=t.user.id) }}"
+             class="support-thread-row {{ 'support-thread-unread' if t.unread > 0 }}">
+            <div class="support-thread-avatar">
+              {% if t.user.avatar_src %}
+                <img src="{{ t.user.avatar_src }}" alt="">
+              {% else %}
+                <span>{{ t.user.name[0]|upper }}</span>
+              {% endif %}
+            </div>
+            <div class="support-thread-info">
+              <div class="support-thread-name">{{ t.user.name }}</div>
+              <div class="support-thread-meta">
+                {{ t.user.tier_label }} · {{ t.last_msg.strftime('%b %d, %Y · %I:%M %p') }}
+              </div>
+            </div>
+            {% if t.unread > 0 %}
+              <span class="support-unread-badge">{{ t.unread }} new</span>
+            {% endif %}
+          </a>
+        {% endfor %}
+      </div>
+    {% else %}
+      <div class="panel" style="text-align:center;padding:32px;">
+        <p class="muted">No support messages yet.</p>
+      </div>
+    {% endif %}
+  </div>
+</section>
+{% endblock %}

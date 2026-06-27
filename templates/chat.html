@@ -1,0 +1,130 @@
+{% extends "base.html" %}
+{% block title %}Chat — Axiom{% endblock %}
+
+{% block content %}
+<section class="page-head page-head-tight">
+  <div class="wrap">
+    <p class="eyebrow">Community</p>
+    <h1>Chat</h1>
+    <div class="room-tabs">
+      <a href="{{ url_for('chat', room='free') }}" class="room-tab {{ 'active' if room == 'free' }}">Free room</a>
+      <a href="{{ url_for('chat', room='premium') }}" class="room-tab {{ 'active' if room == 'premium' }}">Premium room</a>
+    </div>
+  </div>
+</section>
+
+<section class="chat-section">
+  <div class="wrap chat-wrap">
+    {% if room == 'premium' and not current_user.can_use_premium_chat %}
+      <div class="chat-locked">
+        <h3>Premium room</h3>
+        <p class="muted">Available to Standard and Premium members.</p>
+        <a href="{{ url_for('pricing') }}" class="btn btn-solid">Upgrade →</a>
+      </div>
+    {% else %}
+      <div class="chat-box" id="chatBox">
+        {% for m in messages %}
+          <div class="chat-msg {{ 'chat-msg-self' if m.user_id == current_user.id }}"
+               data-id="{{ m.id }}">
+            <a href="{{ url_for('wall', user_id=m.user_id) }}" class="chat-msg-name">{{ m.user.name }}{% if m.user.badge_label %} <span class="chat-badge">{{ m.user.badge_label }}</span>{% endif %}</a>
+            <p>{{ m.content }}</p>
+            <span class="chat-msg-time">{{ m.created_at.strftime('%I:%M %p') }}</span>
+          </div>
+        {% endfor %}
+        {% if not messages %}
+          <p class="muted chat-empty" id="chatEmpty">No messages yet — say hello.</p>
+        {% endif %}
+      </div>
+      <form class="chat-input-row" id="chatForm">
+        <input type="text" id="chatInput" maxlength="500" placeholder="Write a message..." required autocomplete="off">
+        <button type="submit" class="btn btn-solid">Send</button>
+      </form>
+    {% endif %}
+  </div>
+</section>
+{% endblock %}
+
+{% block scripts %}
+<script>
+(function(){
+  const box   = document.getElementById('chatBox');
+  const form  = document.getElementById('chatForm');
+  const input = document.getElementById('chatInput');
+  const room  = '{{ room }}';
+  if (!box || !form) return;
+
+  let lastId = {{ messages[-1].id if messages else 0 }};
+
+  function scrollBottom(){ box.scrollTop = box.scrollHeight; }
+
+  function buildMsg(d){
+    const wrap = document.createElement('div');
+    wrap.className = 'chat-msg' + (d.is_self ? ' chat-msg-self' : '');
+    wrap.dataset.id = d.id;
+
+    const nameLink = document.createElement('a');
+    nameLink.href = d.wall_url;
+    nameLink.className = 'chat-msg-name';
+    nameLink.textContent = d.name;
+    if(d.badge){
+      const b = document.createElement('span');
+      b.className = 'chat-badge';
+      b.textContent = d.badge;
+      nameLink.appendChild(b);
+    }
+
+    const p    = document.createElement('p');  p.textContent = d.content;
+    const time = document.createElement('span'); time.className = 'chat-msg-time'; time.textContent = d.time;
+
+    wrap.appendChild(nameLink);
+    wrap.appendChild(p);
+    wrap.appendChild(time);
+    return wrap;
+  }
+
+  function removeEmpty(){
+    const e = document.getElementById('chatEmpty');
+    if(e) e.remove();
+  }
+
+  scrollBottom();
+
+  // Send via AJAX
+  form.addEventListener('submit', async e => {
+    e.preventDefault();
+    const text = input.value.trim();
+    if(!text) return;
+    input.value = '';
+    const fd = new FormData();
+    fd.append('content', text);
+    try {
+      const res = await fetch(`/chat/${room}/send`, { method:'POST', body:fd });
+      if(res.ok){
+        removeEmpty();
+        const d = await res.json();
+        box.appendChild(buildMsg(d));
+        lastId = d.id;
+        scrollBottom();
+      }
+    } catch(err){ console.error(err); }
+  });
+
+  // Poll every 2s for new messages from others
+  setInterval(async () => {
+    try {
+      const res = await fetch(`/chat/${room}/poll?after=${lastId}`);
+      if(!res.ok) return;
+      const msgs = await res.json();
+      for(const d of msgs){
+        if(!d.is_self && !document.querySelector(`[data-id="${d.id}"]`)){
+          removeEmpty();
+          box.appendChild(buildMsg(d));
+          lastId = d.id;
+        }
+      }
+      if(msgs.length) scrollBottom();
+    } catch(err){ console.error(err); }
+  }, 2000);
+})();
+</script>
+{% endblock %}

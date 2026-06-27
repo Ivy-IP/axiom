@@ -1,0 +1,20 @@
+{% extends "base.html" %}
+{% block title %}{{ code }} — Axiom{% endblock %}
+
+{% block content %}
+<section class="page-head">
+  <div class="wrap">
+    <p class="eyebrow">Error {{ code }}</p>
+    <h1>{{ message }}</h1>
+    <p class="muted">If you think this is a mistake, head back to your dashboard or the home page.</p>
+    <div class="hero-cta" style="margin-top:20px;">
+      <a href="{{ url_for('index') }}" class="btn btn-ghost">Home</a>
+      {% if current_user.is_authenticated %}
+        <a href="{{ url_for('dashboard') }}" class="btn btn-solid">Dashboard</a>
+      {% else %}
+        <a href="{{ url_for('login') }}" class="btn btn-solid">Log in</a>
+      {% endif %}
+    </div>
+  </div>
+</section>
+{% endblock %}

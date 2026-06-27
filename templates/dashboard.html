@@ -1,0 +1,337 @@
+{% extends "base.html" %}
+{% block title %}Dashboard — Axiom{% endblock %}
+
+{% block content %}
+<section class="page-head page-head-tight">
+  <div class="wrap dash-head">
+    <div>
+      <p class="eyebrow">Welcome back</p>
+      <h1>{{ current_user.name }}</h1>
+    </div>
+    {% if current_user.badge_label %}
+      <span class="tier-pill tier-staff">{{ current_user.badge_label }}</span>
+    {% else %}
+      <span class="tier-pill tier-{{ current_user.tier }}">{{ tier_icon(current_user.tier) }} {{ current_user.tier_label }}</span>
+    {% endif %}
+  </div>
+</section>
+
+<section class="dash-section">
+  <div class="wrap dash-grid">
+    <div class="dash-main">
+
+      {% if current_user.can_post %}
+        <form class="composer" method="POST" action="{{ url_for('create_post') }}" enctype="multipart/form-data">
+          <textarea name="content" placeholder="Share something with the community…" required></textarea>
+          <div class="composer-row">
+            <input type="file" name="image" accept="image/*" class="file-input">
+            <select name="tag">
+              <option>Update</option><option>Announcement</option><option>Win</option><option>Question</option>
+            </select>
+            <button type="submit" class="btn btn-solid">Post</button>
+          </div>
+        </form>
+      {% else %}
+        <div class="composer-locked">
+          Posting photos and updates is available to <strong>Premium members</strong>.
+          <a href="{{ url_for('pricing') }}">Upgrade →</a>
+        </div>
+      {% endif %}
+
+      <div class="post-list" id="postList">
+        {% if posts %}
+          {% for p in posts %}
+            <div class="post-card" id="post-{{ p.id }}">
+              <div class="post-meta">
+                <a href="{{ url_for('wall', user_id=p.user_id) }}" class="avatar">{{ p.author.name[0]|upper }}</a>
+                <div>
+                  <a href="{{ url_for('wall', user_id=p.user_id) }}" class="post-author-name">{{ p.author.name }}</a>
+                  <div class="post-time">{{ p.created_at.strftime('%b %d, %Y · %I:%M %p') }}</div>
+                </div>
+                <span class="post-tag">{{ p.tag }}</span>
+                {% if p.user_id == current_user.id or current_user.is_admin %}
+                  <form method="POST" action="{{ url_for('delete_post', post_id=p.id) }}" class="post-delete-form">
+                    <button type="submit" class="post-delete-btn" title="Delete post">✕</button>
+                  </form>
+                {% endif %}
+              </div>
+              {% if p.image_data %}<img src="data:{{ p.image_mime }};base64,{{ p.image_data }}" class="post-image" alt="">{% endif %}
+              <p>{{ p.content }}</p>
+
+              <!-- Like / Comment bar -->
+              <div class="post-actions" data-post="{{ p.id }}">
+                <button class="action-btn like-btn" data-post="{{ p.id }}" onclick="toggleLike({{ p.id }},this)">
+                  <span class="like-icon">♡</span> <span class="like-count">…</span>
+                </button>
+                <button class="action-btn comment-toggle-btn" onclick="toggleComments({{ p.id }})">
+                  💬 <span class="comment-count-{{ p.id }}">…</span>
+                </button>
+                <button class="action-btn report-btn" onclick="openReport({{ p.id }})">⚑ Report</button>
+              </div>
+
+              <!-- Comments panel (hidden by default) -->
+              <div class="comments-panel" id="cp-{{ p.id }}" hidden>
+                <div class="comment-list" id="cl-{{ p.id }}"></div>
+                <form class="comment-form" onsubmit="submitComment(event,{{ p.id }},null)">
+                  <input type="text" placeholder="Write a comment…" id="ci-{{ p.id }}" maxlength="500" required>
+                  <button type="submit" class="btn btn-solid btn-sm">Send</button>
+                </form>
+              </div>
+
+              <!-- Report modal (inline) -->
+              <div class="report-panel" id="rp-{{ p.id }}" hidden>
+                <form onsubmit="submitReport(event,{{ p.id }})">
+                  <p class="eyebrow">Report this post</p>
+                  <select name="reason" required>
+                    <option value="">Select reason…</option>
+                    <option>Spam or self-promotion</option>
+                    <option>Inappropriate language</option>
+                    <option>Harassment or bullying</option>
+                    <option>False information</option>
+                    <option>Other</option>
+                  </select>
+                  <div style="display:flex;gap:8px;margin-top:8px;">
+                    <button type="submit" class="btn btn-solid btn-sm">Submit report</button>
+                    <button type="button" class="btn btn-ghost btn-sm" onclick="closeReport({{ p.id }})">Cancel</button>
+                  </div>
+                </form>
+              </div>
+            </div>
+          {% endfor %}
+        {% else %}
+          <div class="post-card empty">No posts yet.</div>
+        {% endif %}
+      </div>
+    </div>
+
+    <aside class="dash-aside">
+      {% if updates %}
+        <div class="panel panel-sm">
+          <p class="eyebrow">Latest update</p>
+          <h4>{{ updates[0].title }}</h4>
+          <p class="muted" style="font-size:.85rem;">{{ updates[0].content[:100] }}…</p>
+          <a href="{{ url_for('updates') }}" class="link-arrow">All updates →</a>
+        </div>
+      {% endif %}
+      <div class="panel panel-sm">
+        <p class="eyebrow">Quick links</p>
+        <ul class="quick-links">
+          <li><a href="{{ url_for('chat', room='free') }}">💬 Free chat room</a></li>
+          {% if current_user.can_use_premium_chat %}<li><a href="{{ url_for('chat', room='premium') }}">♛ Premium chat</a></li>{% endif %}
+          <li><a href="{{ url_for('jobs') }}">💼 Job board</a></li>
+          <li><a href="{{ url_for('events') }}">📅 Events</a></li>
+          <li><a href="{{ url_for('profile') }}">👤 Your profile</a></li>
+        </ul>
+      </div>
+      {% if not current_user.is_admin and current_user.tier in ('free','first') %}
+        <div class="panel panel-sm panel-cta">
+          <p class="eyebrow">Unlock more</p>
+          <p>Premium chat, posting, and priority on job applications.</p>
+          <a href="{{ url_for('pricing') }}" class="btn btn-solid btn-sm" style="margin-top:10px;display:inline-flex;">View tiers</a>
+        </div>
+      {% endif %}
+    </aside>
+  </div>
+</section>
+{% endblock %}
+
+{% block scripts %}
+<script>
+// Track last comment id per post for polling
+const lastCommentId = {};
+
+document.querySelectorAll('.post-actions[data-post]').forEach(el => {
+  loadPostMeta(el.dataset.post);
+});
+
+async function loadPostMeta(postId) {
+  try {
+    const r = await fetch(`/posts/${postId}/comments`);
+    if (!r.ok) return;
+    const d = await r.json();
+    updateLikeBtn(postId, d.liked, d.like_count);
+    updateCommentCount(postId, d.comments);
+    let maxId = 0;
+    d.comments.forEach(c => {
+      if (c.id > maxId) maxId = c.id;
+      (c.replies || []).forEach(rep => { if (rep.id > maxId) maxId = rep.id; });
+    });
+    if (!lastCommentId[postId]) lastCommentId[postId] = maxId;
+  } catch(e){}
+}
+
+function updateLikeBtn(postId, liked, count) {
+  const btn = document.querySelector(`.like-btn[data-post="${postId}"]`);
+  if (!btn) return;
+  btn.querySelector('.like-icon').textContent = liked ? '\u2665' : '\u2661';
+  btn.querySelector('.like-count').textContent = count;
+  btn.classList.toggle('liked', liked);
+}
+
+function updateCommentCount(postId, comments) {
+  const total = comments.reduce((n, c) => n + 1 + (c.replies || []).length, 0);
+  const cc = document.querySelector(`.comment-count-${postId}`);
+  if (cc) cc.textContent = total + (total === 1 ? ' comment' : ' comments');
+}
+
+async function toggleLike(postId, btn) {
+  try {
+    const r = await fetch(`/posts/${postId}/like`, {method:'POST'});
+    if (!r.ok) return;
+    const d = await r.json();
+    btn.querySelector('.like-icon').textContent = d.liked ? '\u2665' : '\u2661';
+    btn.querySelector('.like-count').textContent = d.count;
+    btn.classList.toggle('liked', d.liked);
+  } catch(e){}
+}
+
+function toggleComments(postId) {
+  const panel = document.getElementById(`cp-${postId}`);
+  panel.hidden = !panel.hidden;
+  if (!panel.hidden) loadComments(postId);
+}
+
+async function loadComments(postId) {
+  try {
+    const r = await fetch(`/posts/${postId}/comments`);
+    if (!r.ok) return;
+    const d = await r.json();
+    renderComments(postId, d.comments);
+    updateLikeBtn(postId, d.liked, d.like_count);
+    updateCommentCount(postId, d.comments);
+    let maxId = lastCommentId[postId] || 0;
+    d.comments.forEach(c => {
+      if (c.id > maxId) maxId = c.id;
+      (c.replies || []).forEach(rep => { if (rep.id > maxId) maxId = rep.id; });
+    });
+    lastCommentId[postId] = maxId;
+  } catch(e){}
+}
+
+function renderComments(postId, comments) {
+  const cl = document.getElementById(`cl-${postId}`);
+  if (!cl) return;
+  cl.innerHTML = '';
+  if (!comments.length) {
+    cl.innerHTML = '<p class="muted" style="font-size:.85rem;padding:6px 0;">No comments yet.</p>';
+    return;
+  }
+  for (const c of comments) {
+    cl.appendChild(buildCommentEl(c, postId, false));
+    for (const rep of (c.replies || [])) {
+      cl.appendChild(buildCommentEl(rep, postId, true));
+    }
+  }
+}
+
+function buildCommentEl(c, postId, isReply) {
+  const div = document.createElement('div');
+  div.className = 'comment-item' + (isReply ? ' comment-reply' : '');
+  div.id = `comment-${c.id}`;
+  const heart = c.liked ? '\u2665' : '\u2661';
+  div.innerHTML = `
+    <div class="comment-meta">
+      <a href="${c.wall_url}" class="comment-author">${escHtml(c.name)}</a>
+      <span class="comment-time">${c.time}</span>
+    </div>
+    <p class="comment-content">${escHtml(c.content)}</p>
+    <div class="comment-actions">
+      <button class="caction-btn ${c.liked ? 'liked' : ''}" onclick="toggleCommentLike(${c.id},this)">
+        ${heart} <span>${c.likes}</span>
+      </button>
+      <button class="caction-btn" onclick="openReply(${c.id},${postId})">Reply</button>
+      ${c.is_own ? `<button class="caction-btn danger" onclick="deleteComment(${c.id},${postId})">Delete</button>` : ''}
+    </div>
+    <div class="reply-input" id="ri-${c.id}" hidden>
+      <form onsubmit="submitComment(event,${postId},${c.id})">
+        <input type="text" placeholder="Reply to ${escAttr(c.name)}\u2026" id="rii-${c.id}" maxlength="500" required>
+        <button type="submit" class="btn btn-solid btn-sm">Reply</button>
+      </form>
+    </div>
+  `;
+  return div;
+}
+
+function escHtml(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+function escAttr(s){ return String(s).replace(/"/g,'&quot;').replace(/'/g,'&#39;'); }
+
+async function submitComment(e, postId, parentId) {
+  e.preventDefault();
+  const inputId = parentId ? `rii-${parentId}` : `ci-${postId}`;
+  const input = document.getElementById(inputId);
+  const content = input.value.trim();
+  if (!content) return;
+  const body = {content};
+  if (parentId) body.parent_id = parentId;
+  try {
+    const r = await fetch(`/posts/${postId}/comments/new`, {
+      method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body)
+    });
+    if (!r.ok) { alert('Could not post comment.'); return; }
+    const newC = await r.json();
+    input.value = '';
+    if (parentId) document.getElementById(`ri-${parentId}`).hidden = true;
+    if (newC.id > (lastCommentId[postId] || 0)) lastCommentId[postId] = newC.id;
+    await loadComments(postId);
+    const cl = document.getElementById(`cl-${postId}`);
+    if (cl) cl.scrollTop = cl.scrollHeight;
+  } catch(e){ console.error(e); }
+}
+
+function openReply(commentId, postId) {
+  const ri = document.getElementById(`ri-${commentId}`);
+  ri.hidden = !ri.hidden;
+  if (!ri.hidden) ri.querySelector('input').focus();
+}
+
+async function toggleCommentLike(commentId, btn) {
+  try {
+    const r = await fetch(`/comments/${commentId}/like`, {method:'POST'});
+    if (!r.ok) return;
+    const d = await r.json();
+    btn.className = `caction-btn ${d.liked ? 'liked' : ''}`;
+    btn.innerHTML = `${d.liked ? '\u2665' : '\u2661'} <span>${d.count}</span>`;
+  } catch(e){}
+}
+
+async function deleteComment(commentId, postId) {
+  if (!confirm('Delete this comment?')) return;
+  try {
+    const r = await fetch(`/comments/${commentId}/delete`, {method:'POST'});
+    if (r.ok) await loadComments(postId);
+  } catch(e){}
+}
+
+function openReport(postId) { document.getElementById(`rp-${postId}`).hidden = false; }
+function closeReport(postId) { document.getElementById(`rp-${postId}`).hidden = true; }
+
+async function submitReport(e, postId) {
+  e.preventDefault();
+  const reason = e.target.reason.value;
+  if (!reason) return;
+  try {
+    const r = await fetch(`/posts/${postId}/report`, {
+      method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({reason})
+    });
+    closeReport(postId);
+    alert(r.ok ? 'Report submitted. Thank you.' : 'Could not submit report.');
+  } catch(e){}
+}
+
+// Real-time: poll every 3s for new comments in any open panel
+setInterval(async () => {
+  document.querySelectorAll('.comments-panel:not([hidden])').forEach(async panel => {
+    const postId = panel.id.replace('cp-', '');
+    const after = lastCommentId[postId] || 0;
+    try {
+      const r = await fetch(`/posts/${postId}/comments/poll?after=${after}`);
+      if (!r.ok) return;
+      const newC = await r.json();
+      if (!newC.length) return;
+      newC.forEach(c => { if (c.id > (lastCommentId[postId]||0)) lastCommentId[postId] = c.id; });
+      await loadComments(postId);
+    } catch(e){}
+  });
+}, 3000);
+</script>
+{% endblock %}

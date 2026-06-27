@@ -1,0 +1,114 @@
+{% extends "base.html" %}
+{% block title %}Events — Axiom{% endblock %}
+
+{% block content %}
+<section class="page-head">
+  <div class="wrap">
+    <p class="eyebrow">Community</p>
+    <h1>Events</h1>
+    <p class="muted">Upcoming meetups, online sessions, and community gatherings.</p>
+  </div>
+</section>
+
+{% if current_user.is_authenticated and (current_user.is_admin or current_user.can_post_updates) %}
+<section class="updates-composer-section">
+  <div class="wrap">
+    <div class="panel">
+      <p class="eyebrow">Admin / company only</p>
+      <h3>Add an event</h3>
+      <form method="POST" action="{{ url_for('events') }}" enctype="multipart/form-data">
+        <div class="field-row-2">
+          <div class="field">
+            <label for="ev-title">Event title</label>
+            <input type="text" id="ev-title" name="title" required placeholder="e.g. Monthly community call">
+          </div>
+          <div class="field">
+            <label for="ev-date">Date &amp; time</label>
+            <input type="datetime-local" id="ev-date" name="event_date" required>
+          </div>
+        </div>
+        <div class="field">
+          <label for="ev-location">Location</label>
+          <input type="text" id="ev-location" name="location" placeholder="e.g. Online (Zoom link below) or Yangon">
+        </div>
+        <div class="field">
+          <label for="ev-desc">Description / details</label>
+          <textarea id="ev-desc" name="description" required placeholder="What's this event about? Include links if relevant."></textarea>
+        </div>
+        <div class="field">
+          <label>Cover image (optional, max 2MB)</label>
+          <input type="file" name="image" accept="image/*" class="file-input">
+        </div>
+        <button type="submit" class="btn btn-solid">Publish event</button>
+      </form>
+    </div>
+  </div>
+</section>
+{% endif %}
+
+<section class="events-section">
+  <div class="wrap">
+    {% if upcoming %}
+      <p class="eyebrow" style="margin-bottom:16px;">Upcoming</p>
+      <div class="event-grid">
+        {% for e in upcoming %}
+          <div class="event-card">
+            {% if e.image_data %}
+              <img src="data:{{ e.image_mime }};base64,{{ e.image_data }}" class="event-cover" alt="">
+            {% else %}
+              <div class="event-cover-placeholder"></div>
+            {% endif %}
+            <div class="event-body">
+              <div class="event-date-badge">
+                <span class="event-month">{{ e.event_date.strftime('%b') }}</span>
+                <span class="event-day">{{ e.event_date.strftime('%d') }}</span>
+              </div>
+              <div class="event-info">
+                <h3>{{ e.title }}</h3>
+                <p class="event-meta">
+                  🕐 {{ e.event_date.strftime('%I:%M %p') }}
+                  {% if e.location %} · 📍 {{ e.location }}{% endif %}
+                </p>
+                <p class="event-desc">{{ e.description }}</p>
+                <p class="muted" style="font-size:.8rem;">Posted by {{ e.organizer.name }}</p>
+              </div>
+              {% if current_user.id == e.user_id or current_user.is_admin %}
+                <form method="POST" action="{{ url_for('delete_event', event_id=e.id) }}" class="post-delete-form">
+                  <button type="submit" class="post-delete-btn" title="Delete event">✕</button>
+                </form>
+              {% endif %}
+            </div>
+          </div>
+        {% endfor %}
+      </div>
+    {% else %}
+      <div class="panel" style="text-align:center;padding:40px;">
+        <p class="muted">No upcoming events yet.</p>
+        {% if current_user.is_admin or current_user.can_post_updates %}
+          <p class="muted" style="margin-top:8px;">Use the form above to add the first one.</p>
+        {% endif %}
+      </div>
+    {% endif %}
+
+    {% if past %}
+      <p class="eyebrow" style="margin-top:40px;margin-bottom:16px;">Past events</p>
+      <div class="event-grid event-grid-past">
+        {% for e in past %}
+          <div class="event-card event-card-past">
+            <div class="event-body">
+              <div class="event-date-badge event-date-past">
+                <span class="event-month">{{ e.event_date.strftime('%b') }}</span>
+                <span class="event-day">{{ e.event_date.strftime('%d') }}</span>
+              </div>
+              <div class="event-info">
+                <h4>{{ e.title }}</h4>
+                <p class="muted" style="font-size:.82rem;">{{ e.event_date.strftime('%b %d, %Y') }}{% if e.location %} · {{ e.location }}{% endif %}</p>
+              </div>
+            </div>
+          </div>
+        {% endfor %}
+      </div>
+    {% endif %}
+  </div>
+</section>
+{% endblock %}

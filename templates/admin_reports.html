@@ -1,0 +1,84 @@
+{% extends "base.html" %}
+{% block title %}Reports — Axiom Admin{% endblock %}
+
+{% block content %}
+<section class="page-head page-head-tight">
+  <div class="wrap">
+    <p class="eyebrow"><a href="{{ url_for('admin_panel') }}">Admin</a> / Reports</p>
+    <h1>Content reports</h1>
+  </div>
+</section>
+
+<section class="admin-section">
+  <div class="wrap">
+    {% if pending %}
+      <h2>Pending review ({{ pending|length }})</h2>
+      <div class="report-list">
+        {% for r in pending %}
+          <div class="report-card">
+            <div class="report-head">
+              <div>
+                <span class="report-reason">{{ r.reason }}</span>
+                <span class="muted" style="font-size:.8rem;margin-left:8px;">Reported {{ r.created_at.strftime('%b %d, %Y · %I:%M %p') }}</span>
+              </div>
+            </div>
+
+            {% set post = r.post %}
+            {% if post %}
+              <div class="report-post-preview">
+                <a href="{{ url_for('wall', user_id=post.user_id) }}" class="report-author">{{ post.author.name }}</a>
+                <p>{{ post.content[:300] }}</p>
+                {% if post.image_data %}<img src="data:{{ post.image_mime }};base64,{{ post.image_data }}" class="report-img" alt="">{% endif %}
+              </div>
+
+              <div class="report-actions">
+                <form method="POST" action="{{ url_for('admin_review_report', report_id=r.id, action='dismiss') }}" style="margin:0;">
+                  <button class="btn-tiny" type="submit">Dismiss</button>
+                </form>
+                <form method="POST" action="{{ url_for('admin_review_report', report_id=r.id, action='delete_post') }}" style="margin:0;">
+                  <button class="btn-tiny btn-tiny-danger" type="submit">Delete post</button>
+                </form>
+                <form method="POST" action="{{ url_for('admin_review_report', report_id=r.id, action='ban_user') }}" class="inline-ban-form">
+                  <select name="days">
+                    <option value="1">1 day</option>
+                    <option value="3">3 days</option>
+                    <option value="7" selected>7 days</option>
+                    <option value="30">30 days</option>
+                    <option value="permanent">Permanent</option>
+                  </select>
+                  <button class="btn-tiny btn-tiny-danger" type="submit">Delete + Ban</button>
+                </form>
+              </div>
+            {% else %}
+              <p class="muted">Post already deleted.</p>
+              <form method="POST" action="{{ url_for('admin_review_report', report_id=r.id, action='dismiss') }}" style="margin:0;">
+                <button class="btn-tiny" type="submit">Close report</button>
+              </form>
+            {% endif %}
+          </div>
+        {% endfor %}
+      </div>
+    {% else %}
+      <div class="panel" style="text-align:center;padding:32px;">
+        <p class="muted">No pending reports.</p>
+      </div>
+    {% endif %}
+
+    {% if reviewed %}
+      <h2 style="margin-top:36px;">Recently reviewed</h2>
+      <table class="simple-table" style="margin-top:12px;">
+        <thead><tr><th>Reason</th><th>Status</th><th>Reviewed</th></tr></thead>
+        <tbody>
+          {% for r in reviewed %}
+            <tr>
+              <td>{{ r.reason }}</td>
+              <td><span class="status-pill status-{{ r.status }}">{{ r.status }}</span></td>
+              <td>{{ r.reviewed_at.strftime('%b %d, %Y') if r.reviewed_at else '—' }}</td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    {% endif %}
+  </div>
+</section>
+{% endblock %}

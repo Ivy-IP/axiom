@@ -1,0 +1,113 @@
+{% extends "base.html" %}
+{% block title %}Pricing — Axiom{% endblock %}
+
+{% block content %}
+<section class="page-head">
+  <div class="wrap">
+    <p class="eyebrow">Membership</p>
+    <h1>Pricing</h1>
+    <p class="muted">Pay with any method below, then submit your reference. An admin verifies it by hand — usually within a day.</p>
+  </div>
+</section>
+
+<section class="pricing-grid-section">
+  <div class="wrap pricing-grid">
+    {% for key in tier_order %}
+      {% set t = tiers[key] %}
+      <div class="price-card price-card-{{ key }}">
+        {% if key == 'premium' %}<span class="price-badge">Most access</span>{% endif %}
+        <h3>{{ t.label }}</h3>
+        <div class="price-amount">{{ "{:,}".format(t.price) }} <span>MMK</span></div>
+        <div class="price-period">{{ t.period }}</div>
+        <ul class="price-features">
+          {% if key == 'free' %}
+            <li>Public pages &amp; the Free chat room</li>
+            <li>Read updates and member posts</li>
+            <li>Post and apply on the job board</li>
+          {% elif key == 'first' %}
+            <li>Everything in Free</li>
+            <li>Founding-member badge, limited slots</li>
+            <li>One-time payment, no renewal</li>
+          {% elif key == 'standard' %}
+            <li>Everything in Free</li>
+            <li>Access to the Premium chat room</li>
+            <li>Priority on job applications</li>
+          {% elif key == 'premium' %}
+            <li>Everything in Standard</li>
+            <li>Post photos &amp; updates to the main feed</li>
+            <li>Premium chat room and early access</li>
+          {% endif %}
+        </ul>
+
+        {% if current_user.is_authenticated %}
+          {% if key == 'free' or current_user.tier == key %}
+            <span class="btn btn-ghost btn-disabled">{{ 'Your current tier' if current_user.tier == key or key == 'free' }}</span>
+          {% else %}
+            <form method="POST" action="{{ url_for('payment_request') }}" class="upgrade-form">
+              <input type="hidden" name="tier_requested" value="{{ key }}">
+              <select name="method" required>
+                <option value="" disabled selected>Choose payment method</option>
+                {% for m in payment_methods %}
+                  <option value="{{ m.name }}">{{ m.name }}</option>
+                {% endfor %}
+              </select>
+              <input type="text" name="payer_name" placeholder="Your name on the payment" required>
+              <input type="text" name="reference_note" placeholder="Transaction reference / phone">
+              <button type="submit" class="btn btn-solid">Request upgrade</button>
+            </form>
+          {% endif %}
+        {% else %}
+          <a href="{{ url_for('signup') }}" class="btn btn-solid">Join to upgrade</a>
+        {% endif %}
+      </div>
+    {% endfor %}
+  </div>
+</section>
+
+<section class="how-it-works">
+  <div class="wrap">
+    <p class="eyebrow">How verification works</p>
+    <h2>Three steps, checked by a person</h2>
+    <div class="steps-row">
+      <div class="step">
+        <span class="step-mark">1</span>
+        <h4>Send payment</h4>
+        <p>Transfer the tier amount to one of our payment accounts below.</p>
+      </div>
+      <div class="step">
+        <span class="step-mark">2</span>
+        <h4>Submit your request</h4>
+        <p>Select the method you used, your name on the payment, and the reference number.</p>
+      </div>
+      <div class="step">
+        <span class="step-mark">3</span>
+        <h4>Admin verifies &amp; activates</h4>
+        <p>We confirm on our side, upgrade your account, and send a notification.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="payment-methods">
+  <div class="wrap">
+    <p class="eyebrow">Payment accounts</p>
+    <h2>Where to send payment</h2>
+    <div class="payment-account-grid">
+      {% for m in payment_methods %}
+        {% if m.account_number %}
+          <div class="payment-account-card">
+            <div class="pay-method-name">{{ m.name }}</div>
+            <div class="pay-account-name">{{ m.account_name }}</div>
+            <div class="pay-account-number">{{ m.account_number }}</div>
+          </div>
+        {% else %}
+          <div class="payment-account-card payment-account-soon">
+            <div class="pay-method-name">{{ m.name }}</div>
+            <div class="muted">Coming soon</div>
+          </div>
+        {% endif %}
+      {% endfor %}
+    </div>
+  </div>
+</section>
+{% endblock %}

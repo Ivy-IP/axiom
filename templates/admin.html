@@ -1,0 +1,209 @@
+{% extends "base.html" %}
+{% block title %}Admin — Axiom{% endblock %}
+
+{% block content %}
+<section class="page-head">
+  <div class="wrap">
+    <p class="eyebrow">Admin</p>
+    <h1>Control panel</h1>
+  </div>
+</section>
+
+<section class="admin-stats">
+  <div class="wrap stat-grid">
+    <div class="stat-tile"><strong>{{ user_count }}</strong><span>Members</span></div>
+    <div class="stat-tile"><strong>{{ tier_counts.premium }}</strong><span>Premium</span></div>
+    <div class="stat-tile"><strong>{{ tier_counts.standard }}</strong><span>Standard</span></div>
+    <div class="stat-tile"><strong>{{ pending|length }}</strong><span>Pending payments</span></div>
+    <div class="stat-tile" style="{{ 'background:#fee;border-color:#f5c6c6;' if pending_reports > 0 }}">
+      <a href="{{ url_for('admin_reports') }}" style="text-decoration:none;color:inherit;">
+        <strong style="{{ 'color:#c9363c;' if pending_reports > 0 }}">{{ pending_reports }}</strong>
+        <span>Reports</span>
+      </a>
+    </div>
+    <div class="stat-tile" style="{{ 'background:#e8f4fd;border-color:#bee3f8;' if unread_support > 0 }}">
+      <a href="{{ url_for('admin_support') }}" style="text-decoration:none;color:inherit;">
+        <strong style="{{ 'color:#2b6cb0;' if unread_support > 0 }}">{{ unread_support }}</strong>
+        <span>Support msgs</span>
+      </a>
+    </div>
+  </div>
+</section>
+
+<section class="admin-section">
+  <div class="wrap">
+    <p class="eyebrow">Action needed</p>
+    <h2>Pending upgrade requests</h2>
+    {% if pending %}
+      <div class="admin-table-wrap">
+        <table class="simple-table">
+          <thead>
+            <tr><th>Member</th><th>Requested tier</th><th>Method</th><th>Payer name</th><th>Reference</th><th>Date</th><th></th></tr>
+          </thead>
+          <tbody>
+            {% for pr in pending %}
+              <tr>
+                <td>{{ pr.user.name }}<br><span class="muted">{{ pr.user.email }}</span></td>
+                <td>{{ tiers[pr.tier_requested].label }}</td>
+                <td>{{ pr.method }}</td>
+                <td>{{ pr.payer_name }}</td>
+                <td>{{ pr.reference_note or "—" }}</td>
+                <td>{{ pr.created_at.strftime('%b %d') }}</td>
+                <td class="admin-actions">
+                  <form method="POST" action="{{ url_for('admin_review_payment', req_id=pr.id, action='approve') }}">
+                    <button class="btn-tiny btn-approve" type="submit">Approve</button>
+                  </form>
+                  <form method="POST" action="{{ url_for('admin_review_payment', req_id=pr.id, action='reject') }}">
+                    <button class="btn-tiny btn-reject" type="submit">Reject</button>
+                  </form>
+                </td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    {% else %}
+      <p class="muted">Nothing pending — all caught up.</p>
+    {% endif %}
+  </div>
+</section>
+
+{% if recent_reviewed %}
+<section class="admin-section">
+  <div class="wrap">
+    <p class="eyebrow">History</p>
+    <h2>Recently reviewed</h2>
+    <table class="simple-table">
+      <thead><tr><th>Member</th><th>Tier</th><th>Status</th><th>Reviewed</th></tr></thead>
+      <tbody>
+        {% for pr in recent_reviewed %}
+          <tr>
+            <td>{{ pr.user.name }}</td>
+            <td>{{ tiers[pr.tier_requested].label }}</td>
+            <td><span class="status-pill status-{{ pr.status }}">{{ pr.status }}</span></td>
+            <td>{{ pr.reviewed_at.strftime('%b %d, %Y') if pr.reviewed_at else "—" }}</td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
+{% endif %}
+
+<section class="admin-section">
+  <div class="wrap">
+    <p class="eyebrow">Directory</p>
+    <div class="admin-members-head">
+      <h2>Members</h2>
+      <div class="admin-search-wrap">
+        <input
+          type="search"
+          id="memberSearch"
+          placeholder="Search by name or email…"
+          class="admin-search-input"
+          oninput="filterMembers(this.value)"
+          autocomplete="off"
+        >
+        <span class="admin-search-count" id="memberCount">{{ all_users|length }} members</span>
+      </div>
+    </div>
+    <div class="admin-table-wrap">
+    <table class="simple-table" id="memberTable">
+      <thead><tr><th>Name</th><th>Email</th><th>Tier</th><th>Role / Position</th><th>Status</th><th>Joined</th><th></th></tr></thead>
+      <tbody>
+        {% for u in all_users %}
+          <tr class="{{ 'row-banned' if u.is_currently_banned }}"
+              data-name="{{ u.name | lower }}"
+              data-email="{{ u.email | lower }}">
+            <td><a href="{{ url_for('wall', user_id=u.id) }}" style="font-weight:700;">{{ u.name }}</a></td>
+            <td>{{ u.email }}</td>
+            <td><span class="tier-pill tier-{{ u.tier }}">{{ u.tier_label }}</span></td>
+            <td>
+              {% if u.is_ceo %}
+                <span class="muted">CEO</span>
+              {% else %}
+                <form method="POST" action="{{ url_for('admin_set_position', user_id=u.id) }}" class="position-form">
+                  <input type="text" name="position" value="{{ u.position or '' }}" placeholder="e.g. Marketing Manager" class="position-input">
+                  <button class="btn-tiny" type="submit">Save</button>
+                </form>
+              {% endif %}
+            </td>
+            <td>
+              {% if u.is_currently_banned %}
+                <span class="ban-badge">Banned{% if u.ban_expires_at %} until {{ u.ban_expires_at.strftime('%b %d') }}{% else %} (permanent){% endif %}</span>
+              {% else %}
+                <span class="muted">Active</span>
+              {% endif %}
+            </td>
+            <td>{{ u.created_at.strftime('%b %d, %Y') }}</td>
+            <td class="admin-actions-cell">
+              {% if u.id != current_user.id and not u.is_ceo %}
+                <form method="POST" action="{{ url_for('admin_toggle_role', user_id=u.id) }}" style="display:inline;">
+                  <button class="btn-tiny" type="submit">{{ 'Remove admin' if u.is_admin else 'Make admin' }}</button>
+                </form>
+                <form method="POST" action="{{ url_for('admin_reset_password', user_id=u.id) }}" style="display:inline;" onsubmit="return confirm('Reset password for {{ u.name }}? They will be notified.')">
+                  <button class="btn-tiny" type="submit">Reset PW</button>
+                </form>
+                {% if u.is_currently_banned %}
+                  <form method="POST" action="{{ url_for('admin_unban', user_id=u.id) }}" style="display:inline;">
+                    <button class="btn-tiny" type="submit">Unban</button>
+                  </form>
+                {% else %}
+                  <details class="ban-dropdown">
+                    <summary class="btn-tiny btn-tiny-danger">Ban</summary>
+                    <form method="POST" action="{{ url_for('admin_ban', user_id=u.id) }}" class="ban-quick-form">
+                      <select name="duration">
+                        <option value="1">1 day</option>
+                        <option value="3">3 days</option>
+                        <option value="7" selected>7 days</option>
+                        <option value="30">30 days</option>
+                        <option value="permanent">Permanent</option>
+                      </select>
+                      <input type="text" name="reason" placeholder="Reason (optional)" class="position-input">
+                      <button type="submit" class="btn-tiny btn-tiny-danger">Confirm</button>
+                    </form>
+                  </details>
+                {% endif %}
+              {% endif %}
+            </td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    </div><!-- end admin-table-wrap -->
+    <p class="muted" id="noMemberResult" style="display:none;margin-top:12px;">No members match your search.</p>
+  </div>
+</section>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function filterMembers(query) {
+  const q = query.toLowerCase().trim();
+  const rows = document.querySelectorAll('#memberTable tbody tr');
+  let visible = 0;
+  rows.forEach(row => {
+    const name  = row.dataset.name  || '';
+    const email = row.dataset.email || '';
+    const match = !q || name.includes(q) || email.includes(q);
+    row.style.display = match ? '' : 'none';
+    if (match) visible++;
+  });
+  const total = rows.length;
+  document.getElementById('memberCount').textContent =
+    q ? `${visible} of ${total} members` : `${total} members`;
+  document.getElementById('noMemberResult').style.display =
+    (q && visible === 0) ? 'block' : 'none';
+}
+
+// Press "/" anywhere on the admin page to jump to the search box
+document.addEventListener('keydown', e => {
+  const tag = document.activeElement.tagName;
+  if (e.key === '/' && tag !== 'INPUT' && tag !== 'TEXTAREA') {
+    e.preventDefault();
+    const box = document.getElementById('memberSearch');
+    if (box) { box.focus(); box.select(); }
+  }
+});
+</script>
+{% endblock %}
