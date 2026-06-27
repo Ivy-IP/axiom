@@ -786,6 +786,8 @@ def change_password():
     db.session.commit()
     flash("Password updated successfully.", "success")
     return redirect(url_for("profile"))
+
+@app.route("/profile/avatar/upload", methods=["POST"])
 @login_required
 def avatar_upload():
     if not current_user.can_change_avatar:
